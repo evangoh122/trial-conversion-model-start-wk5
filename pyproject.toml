@@ -8,6 +8,8 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "boto3>=1.43.115",
+    "evidently>=0.7.23",
     "fastapi>=0.141.1",
     "pandas>=3.0.5",
     "psycopg2-binary>=2.9.12",
