@@ -1,32 +1,43 @@
+from pathlib import Path
 import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
-from pathlib import Path
 
 BUCKET = "fpds-trial-cohorts"
 PREFIX = "cohorts/"
-DEST = Path("data/01_raw/cohorts")
-
-DEST.mkdir(parents=True, exist_ok=True)
 
 s3 = boto3.client(
     "s3",
     region_name="eu-north-1",
-    config=Config(signature_version=UNSIGNED)
+    config=Config(signature_version=UNSIGNED),
 )
 
-response = s3.list_objects_v2(
-    Bucket=BUCKET,
-    Prefix=PREFIX
-)
+# Retrieve all Parquet files
+paginator = s3.get_paginator("list_objects_v2")
+keys = []
 
-for obj in response.get("Contents", []):
-    key = obj["Key"]
+for page in paginator.paginate(Bucket=BUCKET, Prefix=PREFIX):
+    for obj in page.get("Contents", []):
+        key = obj["Key"]
+        if key.endswith(".parquet"):
+            keys.append(key)
 
-    if key.endswith("/"):
-        continue
+# Assumes ISO-formatted dates (YYYY-MM-DD) in filenames
+keys = sorted(keys)
 
-    destination = DEST / Path(key).name
+if not keys:
+    raise RuntimeError("No Parquet cohorts found")
+
+oldest = keys[0]
+newest = keys[-1]
+
+print(f"Oldest: {oldest}")
+print(f"Newest: {newest}")
+
+output = Path("data/cohorts")
+output.mkdir(parents=True, exist_ok=True)
+
+for name, key in [("newest", newest), ("oldest", oldest)]:
+    destination = output / f"{name}.parquet"
     s3.download_file(BUCKET, key, str(destination))
-
     print(f"Downloaded: {destination}")

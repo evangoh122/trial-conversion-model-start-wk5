@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 from evidently import Report
 from evidently.presets import DataDriftPreset
 
-from trial_conversion_model.data import RAW_DATA, FEATURES, add_features
+from trial_conversion_model.data import RAW_DATA
+from trial_conversion_model.features import FEATURES, add_features
 
 REPORT_DIR = Path("monitoring")
 
@@ -29,8 +30,8 @@ def run_drift_check(current: pd.DataFrame, reference: pd.DataFrame) -> object:
     earliest signal that the world has shifted under the model.
     """
     # Apply the same feature engineering used in training to the current and reference datasets.
-    current_features = add_features(current)[Features]
-    reference_features = add_features(reference)[Features]
+    current_features = add_features(current)[FEATURES]
+    reference_features = add_features(reference)[FEATURES]
 
     # Create Evidently report
     report = Report([DataDriftPreset(drift_share=DRIFT_SHARE)])
