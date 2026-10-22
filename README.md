@@ -90,8 +90,25 @@ curl -i -s -X POST localhost:8000/predict -H "Content-Type: application/json" -d
 HTTP/1.1 422 Unprocessable Entity
 ```
 
+## Monitor
+
+Two jobs run daily: `scripts/score.py` publishes the ranked list and `scripts/check_drift.py` compares the newest cohort against the training extract. Both write to the artifacts bucket, under `predictions/` and `monitoring/`.
+
+A cohort counts as drifted when at least half of the eight input features drift. On a drifted verdict, `scripts/check_drift.py` posts the result to the Slack webhook in `SLACK_WEBHOOK_URL`. Put that variable in `.env` locally and in `/home/ubuntu/.env` on the server, where the cron containers pick it up through `--env-file`. Alerting is best effort: an unset webhook or a Slack outage never stops the check or the report.
+
+## Dashboard
+
+`dashboard.py` reads the published artifacts and shows the latest ranked list, the latest drift verdict with a link to the Evidently report, the model's holdout metrics, and how predictions and drift have moved over the past month:
+
+```
+uv run streamlit run dashboard.py
+```
+
+The page reloads every five minutes, so the daily jobs show up without a restart. On a fresh bucket, run `uv run scripts/backfill.py` once to give the charts a month of history.
+
 ## Layout
 
+- `dashboard.py`: the Streamlit operations dashboard; it reads the published artifacts and writes nothing.
 - `src/trial_conversion_model/`: the package. `data.py` acquires the extract from the database and loads the pipeline's inputs; `features.py` derives the model features from the snapshot's base aggregates and writes the processed training table; `train.py` trains, evaluates, and saves the model; `predict.py` scores trials from their base aggregates; `api/` is the FastAPI service (`main.py` builds the app, `routes.py` holds the endpoints, `schemas.py` defines the request and response shapes).
 - `scripts/`: thin entry points that call into the package (`fetch_data.py` materializes the extract, `train.py` builds the training table and trains). Production runs these; the logic stays importable and testable in `src/`.
 - `notebooks/`: exploration only. Notebooks import from the package; no pipeline logic lives here.

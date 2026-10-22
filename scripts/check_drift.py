@@ -7,6 +7,7 @@ from trial_conversion_model.monitoring import (
     load_reference,
     publish_report,
     run_drift_check,
+    send_alert,
 )
 
 if __name__ == "__main__":
@@ -27,4 +28,16 @@ if __name__ == "__main__":
     result = publish_report(snapshot, cohort_path.stem)
 
     verdict = "DRIFT" if result["drift"] else "OK"
-    print(f"{verdict}: {result['drifted_share']:.0%} of features drifted ({cohort_path.name})")
+    print(
+        f"{verdict}: {result['drifted_share']:.0%} of features drifted ({cohort_path.name})"
+    )
+
+    # Only drift is news; a clean check stays quiet so the channel means
+    # something when it does speak.
+    if result["drift"]:
+        alerted = send_alert(result, cohort_path.stem)
+        print(
+            "alert sent to Slack"
+            if alerted
+            else "alert not sent (webhook unset or Slack unreachable)"
+        )

@@ -7,6 +7,21 @@ from trial_conversion_model.features import CATEGORICAL, FEATURES, add_features
 
 MODEL_PATH = Path("models/model.json")
 
+# The cut-offs a human uses to triage a score. They live next to the
+# prediction because the dashboard labels rows with the same bands the API
+# returns.
+BAND_LOW = 0.33
+BAND_HIGH = 0.66
+
+
+def to_band(probability: float) -> str:
+    """Turn a raw probability into a label a human can act on."""
+    if probability < BAND_LOW:
+        return "low"
+    if probability < BAND_HIGH:
+        return "medium"
+    return "high"
+
 
 def load_model(path: Path = MODEL_PATH) -> XGBClassifier:
     """Load the trained model from its native XGBoost artifact."""

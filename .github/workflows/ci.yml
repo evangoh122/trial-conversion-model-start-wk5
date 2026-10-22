@@ -7,8 +7,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
-  workflow_dispatch:
 
 jobs:
   ci:
@@ -24,13 +22,16 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
-      - name: Pull the model from S3
+      # The model artifact is not in git; the service cannot exist without
+      # it. CI pulls the published model from S3, exactly like production
+      # will, BEFORE the tests run (the API loads the model at import).
+      - name: Pull the published model from S3
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ap-southeast-1
         run: >
-          uv run --with boto3 python -c "import boto3;
+          uv run python -c "import boto3;
           boto3.client('s3').download_file(
           'trial-conversion-artifacts-evangoh',
           'models/model.json', 'models/model.json')"
@@ -43,7 +44,7 @@ jobs:
 
   publish:
     needs: ci
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -73,16 +74,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push the image
+      - name: Build and push both images
         run: |
           IMAGE=ghcr.io/evangoh122/trial-conversion-model
           docker build -t $IMAGE:latest -t $IMAGE:${{ github.sha }} .
           docker push $IMAGE:latest
           docker push $IMAGE:${{ github.sha }}
+          # The jobs image ships with every push, the same way the API's does.
+          docker build -f Dockerfile.jobs -t $IMAGE-jobs:latest -t $IMAGE-jobs:${{ github.sha }} .
+          docker push $IMAGE-jobs:latest
+          docker push $IMAGE-jobs:${{ github.sha }}
 
   deploy:
     needs: publish
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       # The same three commands a human runs for a manual deploy,
@@ -94,6 +99,9 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Cron starts a container from this image every morning, so the
+            # pull here is what puts a pushed change into tomorrow's run.
+            sudo docker pull ghcr.io/evangoh122/trial-conversion-model-jobs:latest
             sudo docker pull ghcr.io/evangoh122/trial-conversion-model:latest
             sudo docker rm -f trial-conversion || true
             sudo docker run -d --restart unless-stopped --name trial-conversion -p 8000:8000 ghcr.io/evangoh122/trial-conversion-model:latest
