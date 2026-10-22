@@ -14,6 +14,7 @@ from trial_conversion_model.monitoring import (
     run_drift_check,
 )
 
+
 def alert(message: str) -> None:
     webhook = os.environ.get("SLACK_WEBHOOK_URL")
 
