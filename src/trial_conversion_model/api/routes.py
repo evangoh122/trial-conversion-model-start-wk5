@@ -1,5 +1,6 @@
 import logging
 
+import pandas as pd
 from fastapi import APIRouter
 
 from trial_conversion_model.api.schemas import PredictionRequest, PredictionResponse
@@ -37,7 +38,7 @@ def predict(request: PredictionRequest) -> PredictionResponse:
     probability = round(float(model.predict_proba(features)[0][1]), 4)
 
     # Assign band and return response
-    band = probability_to_band(probability)
+    band = to_band(probability)
 
     return PredictionResponse(
         probability=probability,
