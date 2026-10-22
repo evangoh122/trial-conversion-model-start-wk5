@@ -4,7 +4,7 @@ import pandas as pd
 from fastapi import APIRouter
 
 from trial_conversion_model.api.schemas import PredictionRequest, PredictionResponse
-from trial_conversion_model.predict import load_model
+from trial_conversion_model.predict import load_model, predict_proba
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +31,14 @@ def health() -> dict:
 @router.post("/predict", response_model=PredictionResponse)
 def predict(request: PredictionRequest) -> PredictionResponse:
     """Predict conversion probability for a single live trial."""
-        # Convert request to a one-row DataFrame
+    # The caller sends base aggregates; predict_proba adds the derived
+    # features and lines the dummy columns up with the model's training set.
     features = pd.DataFrame([request.model_dump()])
 
-    # Predict probability of conversion
-    probability = round(float(model.predict_proba(features)[0][1]), 4)
-
-    # Assign band and return response
+    probability = round(float(predict_proba(model, features).iloc[0]), 4)
     band = to_band(probability)
 
     return PredictionResponse(
-        probability=probability,
-        band=band,
+        conversion_probability=probability,
+        conversion_band=band,
     )
