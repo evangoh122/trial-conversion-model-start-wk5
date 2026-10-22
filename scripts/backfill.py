@@ -106,7 +106,6 @@ def ok_verdict(date: datetime) -> dict:
         "source": "backfill",
     }
 
-
 def main() -> None:
     load_dotenv()
     bucket = os.environ["S3_BUCKET"]
