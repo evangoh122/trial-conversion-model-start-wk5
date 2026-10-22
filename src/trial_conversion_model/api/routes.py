@@ -1,10 +1,9 @@
 import logging
 
-import pandas as pd
 from fastapi import APIRouter
 
 from trial_conversion_model.api.schemas import PredictionRequest, PredictionResponse
-from trial_conversion_model.predict import load_model, predict_proba
+from trial_conversion_model.predict import load_model
 
 logger = logging.getLogger(__name__)
 

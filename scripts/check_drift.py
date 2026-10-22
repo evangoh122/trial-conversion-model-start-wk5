@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from trial_conversion_model.monitoring import(
+from trial_conversion_model.monitoring import (
     load_reference,
-    run_drift_check,
     publish_report,
+    run_drift_check,
 )
 
 if __name__ == "__main__":

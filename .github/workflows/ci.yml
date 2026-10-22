@@ -22,13 +22,16 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
-      # TODO: one step is missing here, and where you put it is the point.
-      # The model artifact is not in git, and your API loads the model the
-      # moment it is imported, so anything that imports your service needs
-      # that file to already be on disk. Add a step that downloads
-      # models/model.json from your bucket, and put it where it has to go.
-      # The publish job below does the same download; read it for the
-      # shape, then decide the position here yourself.
+      - name: Pull the model from S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-southeast-1
+        run: >
+          uv run --with boto3 python -c "import boto3;
+          boto3.client('s3').download_file(
+          'trial-conversion-artifacts-evangoh',
+          'models/model.json', 'models/model.json')"
 
       - name: Test
         run: uv run pytest
@@ -38,8 +41,7 @@ jobs:
 
   publish:
     needs: ci
-    # TODO: every push runs the job above, but only one branch should ever
-    # publish an image. Add the condition that limits this job to main.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,7 +55,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: <your-region>
+          AWS_DEFAULT_REGION: ap-southeast-1
         run: >
           uv run --with boto3 python -c "import boto3;
           boto3.client('s3').download_file(
@@ -78,8 +80,7 @@ jobs:
 
   deploy:
     needs: publish
-    # TODO: same condition as the publish job. Deploying is the one thing
-    # that must never happen from a branch.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       # The same three commands a human runs for a manual deploy,
