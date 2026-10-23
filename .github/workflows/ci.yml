@@ -90,6 +90,12 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      - name: Normalize SSH key formatting
+        run: |
+          mkdir -p "$HOME/.ssh"
+          printf '%s' '${{ secrets.EC2_SSH_KEY }}' | sed 's/\\n/\n/g' > "$HOME/.ssh/ec2_deploy_key"
+          chmod 600 "$HOME/.ssh/ec2_deploy_key"
+
       # The same three commands a human runs for a manual deploy,
       # executed by GitHub over SSH on every push to main.
       - name: Restart the service on EC2 with the new image
@@ -97,7 +103,7 @@ jobs:
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
+          key_path: /home/runner/.ssh/ec2_deploy_key
           script: |
             # Cron starts a container from this image every morning, so the
             # pull here is what puts a pushed change into tomorrow's run.
